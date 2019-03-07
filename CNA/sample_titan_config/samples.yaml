@@ -1,0 +1,7 @@
+samples:
+  normal_sample_IIICF:  /home/scai/data_links/immortal/REALIGNED_RG_DEDUP_SORTED_HG19_IIICF.bam
+  tumor_sample_a2:  /home/scai/data_links/immortal/REALIGNED_RG_DEDUP_SORTED_HG19_IIICF_a2.bam
+
+
+pairings:
+  tumor_sample_a2:  normal_sample_IIICF
