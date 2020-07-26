@@ -1,0 +1,241 @@
+---
+title: "R Notebook"
+---
+
+```{r setup}
+library(RUVSeq)
+library(tximport)
+library(ensembldb)
+library(tximportData)
+library(EnsDb.Hsapiens.v75)
+library(preprocessCore)
+library(RColorBrewer)
+library(EDASeq)
+library(DESeq2)
+require(data.table)
+library(ggplot2)
+```
+
+```{r}
+colors <- brewer.pal(6, "Set2")
+tx2gene <- transcripts(EnsDb.Hsapiens.v75, return.type="DataFrame", columns = c("tx_id", "gene_name"))[, c("tx_id", "gene_name")]
+colnames(tx2gene) <- c("TransID", "GeneName")
+
+sample.excel = read.table("../samples/SAMPLES_Excel.tsv", sep = '\t', header = T, stringsAsFactors = F)
+sample.rna = read.table("../samples/SAMPLES_RNA.tsv", sep = '\t', header = T, stringsAsFactors = F)
+
+JF = sample.excel[grepl("JF", sample.excel$Immortal),c(2,3)]
+ALT_JF = JF[JF$TMM == "ALT",]
+TEL_JF = JF[JF$TMM == "TEL",]
+
+sample.rna.JF.ALT = sample.rna[sample.rna$Sample %in% ALT_JF$Immortal,]
+sample.rna.JF.TEL = sample.rna[sample.rna$Sample %in% TEL_JF$Immortal,]
+```
+
+
+```{r}
+sample.names = c(sample.rna.JF.TEL$ComputerName,sample.rna.JF.ALT$ComputerName)
+```
+
+
+```{r}
+counts.alt = readRDS("../data/counts.genename.alt.rds")
+colnames(counts.alt) = sample.rna.JF.ALT$ComputerName
+counts.alt = counts.alt[, !grepl("pLKO", colnames(counts.alt))]
+JF = JF[!grepl("pLKO", JF$Immortal),]
+ALT_JF = JF[JF$TMM == "ALT",]
+sample.rna.JF.ALT = sample.rna[sample.rna$Sample %in% ALT_JF$Immortal,]
+
+
+counts.tel = readRDS("../data/counts.genename.tel.rds")
+colnames(counts.tel) = sample.rna.JF.TEL$ComputerName
+counts.mortal = readRDS("../data/counts.genename.mortal.rds")
+colnames(counts.mortal) = c("17_JFCF_6_1", "17_JFCF_6_2", "17_JFCF_6_3")
+
+counts.alt = round(counts.alt)
+counts.tel = round(counts.tel)
+counts.mortal = round(counts.mortal)
+counts = cbind(counts.tel,counts.alt,counts.mortal)
+counts = as.data.frame(counts)
+
+```
+
+
+#------counts-----------
+```{r fig.height=7}
+x <- factor(c(rep("TEL", 24), rep("ALT", 30), rep("MORTAL", 3)), ordered = TRUE, levels = c("TEL", "ALT", "Mortal"))
+x_year = as.factor(c(rbind(sample.rna.JF.ALT, sample.rna.JF.TEL)$Date, rep(2017, 3)))
+
+set.counts <- newSeqExpressionSet(as.matrix(counts), phenoData = data.frame(Group=x, Date=x_year, row.names=colnames(counts)))
+set.counts <- betweenLaneNormalization(set.counts, which="upper")
+differences <- matrix(data=c(25:27,40:42), byrow=TRUE, nrow=1)
+set3.counts <- RUVs(set.counts, rownames(counts), k=1, differences)
+
+
+color_x <- as.factor(c(rep("2017", 3), rep("2018", 21), rep("2017_control", 3), rep("2017",6),rep("2018",6), rep("2018_control", 3), rep("2018", 12), rep("2017", 3)))
+plotRLE(counts(set.counts), outline=FALSE, col=colors[color_x], las=2, font=1)
+plotRLE(set.counts, outline=FALSE, col=colors[color_x], las=2, font=1)
+plotRLE(set3.counts, outline=FALSE, col=colors[color_x], las=2, font=1)
+plotPCA(set.counts, col=colors[color_x], cex=1.5)
+plotPCA(set3.counts, col=colors[color_x], cex=1.5)
+```
+
+
+#-----with RUV DEG---------
+```{r}
+counts = cbind(counts.tel,counts.alt)
+x <- factor(c(rep("TEL", 24), rep("ALT", 30)), ordered = TRUE, levels = c("TEL", "ALT"))
+x_year = as.factor(rbind(sample.rna.JF.ALT, sample.rna.JF.TEL)$Date)
+counts = counts[rowSums(counts)>0,]
+
+
+set.counts <- newSeqExpressionSet(as.matrix(counts), phenoData = data.frame(Group=x, Date=x_year, row.names=colnames(counts)))
+set.counts <- betweenLaneNormalization(set.counts, which="upper")
+differences <- matrix(data=c(25:27,40:42), byrow=TRUE, nrow=1)
+set3.counts <- RUVs(set.counts, rownames(counts), k=1, differences)
+
+
+color_x <- as.factor(c(rep("2017", 3), rep("2018", 21), rep("2017_control", 3), rep("2017",6),rep("2018",6), rep("2018_control", 3), rep("2018", 12)))
+plotRLE(counts(set.counts), outline=FALSE, col=colors[color_x], las=2, font=1)
+plotRLE(set.counts, outline=FALSE, col=colors[color_x], las=2, font=1)
+plotRLE(set3.counts, outline=FALSE, col=colors[color_x], las=2, font=1)
+plotPCA(set.counts, col=colors[color_x], cex=0.7)
+plotPCA(set3.counts, col=colors[color_x], cex=0.7)
+```
+
+```{r}
+design <- model.matrix(~Group + Date + W_1, data=pData(set3.counts))
+x <- factor(c(rep("TEL", 24), rep("ALT", 30)), ordered = TRUE, levels = c("TEL", "ALT"))
+
+y <- DGEList(counts=counts(set.counts), group=x, remove.zeros = T)
+# keep <- filterByExpr(y, min.count = 0, min.total.count = 15)
+# y <- y[keep, , keep.lib.sizes=FALSE]
+y <- calcNormFactors(y, method = "upperquartile")
+y <- estimateGLMCommonDisp(y, design)
+y <- estimateGLMTagwiseDisp(y, design)
+fit <- glmFit(y, design)
+lrt <- glmLRT(fit, coef=2)
+res = topTags(lrt, n=Inf)
+
+volcanoData <- cbind(res$table$logFC, -log10(res$table$FDR))
+colnames(volcanoData) <- c("logFC", "negLogPval")
+head(volcanoData)
+plot(volcanoData, pch=19)
+```
+
+```{r}
+res$table = cbind(rownames(res$table), res$table)
+colnames(res$table) = c("Gene", colnames(res$table)[2:dim(res$table)[2]])
+write.table(res$table, "../results/DEG.tsv", row.names = F, sep = "\t")
+```
+
+```{r}
+df = as.data.frame(normCounts(set3.counts))
+df = cbind(rownames(df), df)
+colnames(df) = c("Gene", colnames(df)[2:dim(df)[2]])
+write.table(df, "../results/ruv_counts.tsv", sep = "\t", row.names = F)
+
+df = as.data.frame(normCounts(set.counts))
+df = cbind(rownames(df), df)
+colnames(df) = c("Gene", colnames(df)[2:dim(df)[2]])
+write.table(df, "../results/raw_counts.tsv", sep = "\t", row.names = F)
+```
+
+
+```{r}
+summary(decideTests(lrt, p.value = 0.01))
+plotMD(lrt, bg.cex=0.5, hl.cex=0.5, p.value = 0.01)
+```
+
+```{r}
+res[rownames(res)== "IMPDH1",]
+```
+
+
+```{r}
+res$table$rank = 1:dim(res$table)[1]
+res[rownames(res$table)=="TERT",]
+```
+
+
+#-------uniquely expressed------------
+```{r}
+alt.gene = rownames(counts.alt[rowSums(counts.alt) > 0, ])
+tel.gene = rownames(counts.tel[rowSums(counts.tel) > 0, ])
+
+alt.unique = setdiff(alt.gene, tel.gene)
+tel.unique = setdiff(tel.gene, alt.gene)
+
+alt.unique.counts = counts[rownames(counts) %in% alt.unique, ]
+tel.unique.counts = counts[rownames(counts) %in% tel.unique, ]
+alt.unique.counts <- cbind(Gene = rownames(alt.unique.counts), alt.unique.counts)
+tel.unique.counts <- cbind(Gene = rownames(tel.unique.counts), tel.unique.counts)
+
+write.table(alt.unique.counts, "../results/alt.unique.counts.tsv", sep = '\t', row.names = F)
+write.table(tel.unique.counts, "../results/tel.unique.counts.tsv", sep = '\t', row.names = F)
+
+```
+
+```{r}
+ruv_counts = normCounts(set3.counts)
+raw_counts = counts
+ruv_counts <- cbind(Gene = rownames(ruv_counts), ruv_counts)
+write.table(ruv_counts, "../results/ruv_counts.tsv", sep = '\t', row.names = F)
+raw_counts <- cbind(Gene = rownames(raw_counts), raw_counts)
+
+write.table(raw_counts, "../results/raw_counts.tsv", sep = '\t', row.names = F)
+
+```
+
+count number of cell lines for each gene
+```{r}
+counts.alt.celline = c()
+for (i in 1:(dim(counts.alt)[2]/3)){
+  counts.alt.celline = cbind(counts.alt.celline, rowSums(counts.alt[, ((i-1)*3 + 1):((i-1)*3 + 3)]))
+  colnames(counts.alt.celline)[i] = sub("_1$", "", colnames(counts.alt)[((i-1)*3 + 1)])
+}
+
+counts.tel.celline = c()
+for (i in 1:(dim(counts.tel)[2]/3)){
+  counts.tel.celline = cbind(counts.tel.celline, rowSums(counts.tel[, ((i-1)*3 + 1):((i-1)*3 + 3)]))
+  colnames(counts.tel.celline)[i] = sub("_1$", "", colnames(counts.tel)[((i-1)*3 + 1)])
+}
+counts.alt.celline.unique = apply(counts.alt.celline, 1, function(x) sum(x > 0))
+counts.alt.celline.unique = counts.alt.celline.unique[counts.alt.celline.unique > 0]
+counts.tel.celline.unique = apply(counts.tel.celline, 1, function(x) sum(x > 0))
+counts.tel.celline.unique = counts.tel.celline.unique[counts.tel.celline.unique > 0]
+
+counts.tel.celline.unique = counts.tel.celline.unique[names(counts.tel.celline.unique) %in% tel.unique]
+counts.alt.celline.unique = counts.alt.celline.unique[names(counts.alt.celline.unique) %in% alt.unique]
+
+counts.tel.celline.unique.df = as.data.frame(counts.tel.celline.unique)
+counts.alt.celline.unique.df = as.data.frame(counts.alt.celline.unique)
+
+fdr = res$table[, 5]
+combined.tel = merge(counts.tel.celline.unique.df, res$table, by=0)
+combined.alt = merge(counts.alt.celline.unique.df, res$table, by=0)
+combined.tel$counts.tel.celline.unique = -1 * combined.tel$counts.tel.celline.unique
+colnames(combined.tel)[2] = "unique.celline"
+colnames(combined.alt)[2] = "unique.celline"
+
+```
+
+```{r}
+combined.tel[combined.tel$Row.names=="TERT",]
+```
+
+```{r}
+plot(cbind(c((-1 * combined.tel$counts.tel.celline.unique),combined.alt$counts.alt.celline.unique) , c(-log10(combined.tel$FDR), -log10(combined.alt$FDR))), pch=19, cex=0.5)
+```
+
+```{r}
+combined = rbind(combined.tel[,c(1,2,7)], combined.alt[,c(1,2,7)])
+combined$FDR = -log10(combined$FDR)
+
+combined$Highlight = ifelse(combined$Row.names %in% c("TERT"), "highlight", "normal")
+
+mycolours <- c("highlight" = "red", "normal" = "black")
+ggplot(combined, aes(x=unique.celline, y = FDR)) + geom_point(aes(colour = Highlight)) +
+    scale_color_manual("Status", values = mycolours) + scale_x_discrete(name ="unique.celline", limits = sort(combined$unique.celline)) + theme(legend.position = "none") + theme()
+```
+

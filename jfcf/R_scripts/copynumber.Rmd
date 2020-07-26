@@ -1,0 +1,109 @@
+---
+title: "R Notebook"
+---
+
+```{r setup}
+library(copynumber)
+data(lymphoma)
+```
+
+<<<<<<< HEAD
+
+#use copynumber package instead
+```{r}
+freec = read.table("../data/freec_alt.csv", sep = ',', header = T)
+unique(freec$sample)
+logR_all = c()
+sample_all = c()
+for (s in unique(freec$sample)){
+  df = freec[freec$sample == s,]
+  logR_all = cbind(logR_all, df$logR)
+  sample_all = cbind(sample_all, s)
+}
+combined = cbind(df$Chromosome, df$Start, logR_all)
+colnames(combined) = c("Chrom", "Median.bp", sample_all)
+combined = as.data.frame(combined)
+combined.win <- winsorize(data=combined,verbose=FALSE)
+
+single.seg <- pcf(data=combined.win,gamma=1,verbose=F, fast=FALSE)
+centromere = as.data.frame(unique(single.seg[single.seg$arm=="q", c(2,3,4)]))
+rownames(centromere) = c(1:dim(centromere)[1])
+write.table(centromere, "../data/centromere.csv", sep = ",", row.names = F, col.names = T, quote = F)
+```
+
+```{r}
+plotSample(data=combined,segments=single.seg,layout=c(5,5),sample=1,cex=3)
+
+plotGenome(data=combined,segments=single.seg,sample=1,cex=3)
+```
+```{r}
+plotFreq(segments=single.seg,thres.gain=0.2,thres.loss=-0.1, main="JFCF ALT Frequency")
+plotHeatmap(segments=single.seg,upper.lim=1, colors=c("blue","white","red"), sample.cex=0.8, mar=c(5, 8, 4, 2), main="JFCF ALT Heatmap")
+plotAberration(segments=single.seg,thres.gain=0.2, sample.cex=0.8, mar=c(5, 8, 4, 2), main="JFCF ALT Abberation")
+```
+
+```{r}
+single.seg.sort = single.seg[order(single.seg$sampleID, single.seg$chrom, single.seg$start.pos),]
+write.table(single.seg.sort[, c(1,2,4,5,6,7)], "../data/gistic_segs/copynumber_alt.txt", row.names = F, col.names = F, sep = "\t", quote = F)
+```
+
+
+```{r}
+freec = read.table("../data/freec_tel.csv", sep = ',', header = T)
+unique(freec$sample)
+logR_all = c()
+sample_all = c()
+for (s in unique(freec$sample)){
+  df = freec[freec$sample == s,]
+  logR_all = cbind(logR_all, df$logR)
+  sample_all = cbind(sample_all, s)
+}
+combined = cbind(df$Chromosome, df$Start, logR_all)
+colnames(combined) = c("Chr", "Start", sample_all)
+combined = as.data.frame(combined)
+combined.win <- winsorize(data=combined,gamma=12,verbose=FALSE)
+
+single.seg <- pcf(data=combined.win,verbose=FALSE)
+```
+
+
+```{r}
+plotFreq(segments=single.seg,thres.gain=0.2,thres.loss=-0.1, main="JFCF TEL Frequency")
+plotHeatmap(segments=single.seg,upper.lim=1, colors=c("blue","white","red"), sample.cex=0.8, mar=c(5, 8, 4, 2), main="JFCF TEL Heatmap")
+plotAberration(segments=single.seg,thres.gain=0.2, sample.cex=0.8, mar=c(5, 8, 4, 2), main="JFCF TEL Abberation")
+```
+
+```{r}
+single.seg.sort = single.seg[order(single.seg$sampleID, single.seg$chrom, single.seg$start.pos),]
+write.table(single.seg.sort[, c(1,2,4,5,6,7)], "../data/gistic_segs/copynumber_tel.txt", row.names = F, col.names = F, sep = "\t", quote = F)
+```
+
+```{r}
+freec = read.table("../data/freec_mortal.csv", sep = ',', header = T)
+unique(freec$sample)
+logR_all = c()
+sample_all = c()
+for (s in unique(freec$sample)){
+  df = freec[freec$sample == s,]
+  logR_all = cbind(logR_all, df$logR)
+  sample_all = cbind(sample_all, s)
+}
+combined = cbind(df$Chromosome, df$Start, logR_all)
+colnames(combined) = c("Chr", "Start", sample_all)
+combined = as.data.frame(combined)
+combined.win <- winsorize(data=combined,gamma=12,verbose=FALSE)
+
+single.seg <- pcf(data=combined.win,verbose=FALSE)
+```
+
+```{r}
+single.seg.sort = single.seg[order(single.seg$sampleID, single.seg$chrom, single.seg$start.pos),]
+write.table(single.seg.sort[, c(1,2,4,5,6,7)], "../data/gistic_segs/copynumber_mortal.txt", row.names = F, col.names = F, sep = "\t", quote = F)
+```
+
+```{r}
+plotSample(data=combined,segments=single.seg,layout=c(5,5),sample=1,cex=3)
+plotGenome(data=combined,segments=single.seg,sample=1,cex=3)
+```
+=======
+>>>>>>> parent of 9b524ef... update
