@@ -1,0 +1,140 @@
+```{r setup}
+library(WGCNA)
+options(stringsAsFactors = FALSE)
+enableWGCNAThreads()
+disableWGCNAThreads()
+```
+
+```{r}
+protein = read.csv("../data/multiomic/Protein_JFCF-6_20200730_processed.csv", row.names = 1, check.names = F)
+protein = protein[-1,]
+
+gsg = goodSamplesGenes(protein, verbose = 3)
+protein = protein[gsg$goodSamples, gsg$goodGenes]
+tmm = read.csv("../data/multiomic/sample_TMM.csv", check.names = F, row.names = 1)
+powers = c(c(1:10), seq(from = 12, to=20, by=2))
+sft = pickSoftThreshold(protein, powerVector = powers, verbose = 5)
+```
+
+
+```{r}
+sizeGrWindow(9, 5)
+par(mfrow = c(1,2));
+cex1 = 0.9;
+plot(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+xlab="Soft Threshold (power)",ylab="Scale Free Topology Model Fit,signed R^2",type="n",
+main = paste("Scale independence"));
+text(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2], labels=powers,cex=cex1,col="red")
+
+plot(sft$fitIndices[,1], sft$fitIndices[,5],
+xlab="Soft Threshold (power)",ylab="Mean Connectivity", type="n",
+main = paste("Mean connectivity"))
+text(sft$fitIndices[,1], sft$fitIndices[,5], labels=powers, cex=cex1,col="red")
+```
+```{r}
+net = blockwiseModules(protein, power = 8,
+TOMType = "unsigned", minModuleSize = 30,
+reassignThreshold = 0, mergeCutHeight = 0.25,
+numericLabels = TRUE, pamRespectsDendro = FALSE,
+saveTOMs = TRUE,
+saveTOMFileBase = "AllSamples",
+verbose = 3)
+```
+
+```{r}
+# open a graphics window
+sizeGrWindow(12, 9)
+# Convert labels to colors for plotting
+mergedColors = labels2colors(net$colors)
+# Plot the dendrogram and the module colors underneath
+plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]],
+"Module colors",
+dendroLabels = FALSE, hang = 0.03,
+addGuide = TRUE, guideHang = 0.05)
+```
+```{r}
+moduleLabels = net$colors
+moduleColors = labels2colors(net$colors)
+MEs = net$MEs;
+geneTree = net$dendrograms[[1]]
+```
+
+```{r}
+nGenes = ncol(protein);
+nSamples = nrow(protein);
+# Recalculate MEs with color labels
+MEs0 = moduleEigengenes(protein, moduleColors)$eigengenes
+MEs = orderMEs(MEs0)
+moduleTraitCor = cor(MEs, tmm, use = "p");
+moduleTraitPvalue = corPvalueStudent(moduleTraitCor, nSamples)
+```
+
+```{r}
+isALT = as.data.frame(tmm$isALT)
+names(isALT) = "isALT"
+
+modNames = substring(names(MEs), 3)
+geneModuleMembership = as.data.frame(cor(protein, MEs, use = "p"))
+
+MMPvalue = as.data.frame(corPvalueStudent(as.matrix(geneModuleMembership), nSamples))
+names(geneModuleMembership) = paste("MM", modNames, sep = "")
+
+names(MMPvalue) = paste("p.MM", modNames, sep = "")
+
+geneTraitSignificance = as.data.frame(cor(protein, isALT, use = "p"))
+
+GSPvalue = as.data.frame(corPvalueStudent(as.matrix(geneTraitSignificance), nSamples))
+
+names(geneTraitSignificance) = paste("GS.", names(isALT), sep = "")
+
+names(GSPvalue) = paste("p.GS.", names(isALT), sep = "")
+
+```
+
+```{r}
+module = "turquoise"
+column = match(module, modNames)
+
+moduleGenes = moduleColors == module
+
+sizeGrWindow(7, 7)
+
+par(mfrow = c(1, 1))
+
+verboseScatterplot(
+  abs(geneModuleMembership[moduleGenes, column]),
+  abs(geneTraitSignificance[moduleGenes, 1]),
+  xlab = paste("Module Membership in", module, "module"),
+  ylab = "Gene significance for body weight",
+  main = paste("Module membership vs. gene significance\n"),
+  cex.main = 1.2,
+  cex.lab = 1.2,
+  cex.axis = 1.2,
+  col = module
+)
+```
+
+```{r}
+moduleColors[names(protein)=="IMPDH1"]
+moduleColors[names(protein)=="DRG2"]
+
+```
+
+```{r}
+module.df = data.frame(cbind(moduleTraitCor, moduleTraitPvalue))
+colnames(module.df) = c("isALT_corr", "isALT_pvalue")
+rownames(module.df) = substring(rownames(module.df), 3)
+module.df$module_name = rownames(module.df)
+module.df = module.df[,c(3,1,2)]
+
+write.table(module.df, "../results/wgcna/protein_module_tmm.csv", sep = ",", quote = F, row.names = F)
+```
+
+```{r}
+genes.df = data.frame(cbind(names(protein), moduleColors))
+colnames(genes.df) = c("Gene", "Module")
+
+write.table(genes.df, "../results/wgcna/protein_gene_module_membership.csv", sep = ",", quote = F, row.names = F)
+
+```
+
