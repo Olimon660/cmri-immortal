@@ -4,10 +4,7 @@ title: "R Notebook"
 
 ```{r setup}
 library(copynumber)
-data(lymphoma)
 ```
-
-<<<<<<< HEAD
 
 #use copynumber package instead
 ```{r}
@@ -25,10 +22,11 @@ colnames(combined) = c("Chrom", "Median.bp", sample_all)
 combined = as.data.frame(combined)
 combined.win <- winsorize(data=combined,verbose=FALSE)
 
-single.seg <- pcf(data=combined.win,gamma=1,verbose=F, fast=FALSE)
+single.seg <- pcf(data=combined, gamma=0.01, verbose=F, fast=FALSE, Y=combined, kmin=2)
+
 centromere = as.data.frame(unique(single.seg[single.seg$arm=="q", c(2,3,4)]))
 rownames(centromere) = c(1:dim(centromere)[1])
-write.table(centromere, "../data/centromere.csv", sep = ",", row.names = F, col.names = T, quote = F)
+# write.table(centromere, "../data/centromere.csv", sep = ",", row.names = F, col.names = T, quote = F)
 ```
 
 ```{r}
@@ -36,10 +34,16 @@ plotSample(data=combined,segments=single.seg,layout=c(5,5),sample=1,cex=3)
 
 plotGenome(data=combined,segments=single.seg,sample=1,cex=3)
 ```
+
 ```{r}
-plotFreq(segments=single.seg,thres.gain=0.2,thres.loss=-0.1, main="JFCF ALT Frequency")
-plotHeatmap(segments=single.seg,upper.lim=1, colors=c("blue","white","red"), sample.cex=0.8, mar=c(5, 8, 4, 2), main="JFCF ALT Heatmap")
-plotAberration(segments=single.seg,thres.gain=0.2, sample.cex=0.8, mar=c(5, 8, 4, 2), main="JFCF ALT Abberation")
+plotSample(data=sub.lymphoma,segments=single.seg.eg,layout=c(5,5),sample=1,cex=3)
+```
+
+
+```{r}
+plotFreq(segments=single.seg,thres.gain=0.5,thres.loss=-0.5, main="JFCF ALT Frequency")
+# plotHeatmap(segments=single.seg,upper.lim=1, colors=c("blue","white","red"), sample.cex=0.8, mar=c(5, 8, 4, 2), main="JFCF ALT Heatmap")
+# plotAberration(segments=single.seg,thres.gain=0.2, sample.cex=0.8, mar=c(5, 8, 4, 2), main="JFCF ALT Abberation")
 ```
 
 ```{r}
@@ -68,9 +72,9 @@ single.seg <- pcf(data=combined.win,verbose=FALSE)
 
 
 ```{r}
-plotFreq(segments=single.seg,thres.gain=0.2,thres.loss=-0.1, main="JFCF TEL Frequency")
-plotHeatmap(segments=single.seg,upper.lim=1, colors=c("blue","white","red"), sample.cex=0.8, mar=c(5, 8, 4, 2), main="JFCF TEL Heatmap")
-plotAberration(segments=single.seg,thres.gain=0.2, sample.cex=0.8, mar=c(5, 8, 4, 2), main="JFCF TEL Abberation")
+plotFreq(segments=single.seg,thres.gain=0.5,thres.loss=-0.7, main="JFCF TEL Frequency")
+# plotHeatmap(segments=single.seg,upper.lim=1, colors=c("blue","white","red"), sample.cex=0.8, mar=c(5, 8, 4, 2), main="JFCF TEL Heatmap")
+# plotAberration(segments=single.seg,thres.gain=0.2, sample.cex=0.8, mar=c(5, 8, 4, 2), main="JFCF TEL Abberation")
 ```
 
 ```{r}
@@ -105,5 +109,4 @@ write.table(single.seg.sort[, c(1,2,4,5,6,7)], "../data/gistic_segs/copynumber_m
 plotSample(data=combined,segments=single.seg,layout=c(5,5),sample=1,cex=3)
 plotGenome(data=combined,segments=single.seg,sample=1,cex=3)
 ```
-=======
->>>>>>> parent of 9b524ef... update
+

@@ -1,0 +1,67 @@
+---
+title: "R Notebook"
+---
+
+```{r setup}
+library(copynumber)
+library(DNAcopy)
+```
+
+#use copynumber package instead
+```{r}
+freec = read.table("../data/freec_alt.csv", sep = ',', header = T)
+unique(freec$sample)
+logR_all = c()
+sample_all = c()
+for (s in unique(freec$sample)){
+  df = freec[freec$sample == s,]
+  logR_all = cbind(logR_all, df$logR)
+  sample_all = cbind(sample_all, s)
+}
+combined = cbind(df$Chromosome, df$Start, logR_all)
+colnames(combined) = c("Chrom", "maploc", sample_all)
+combined = as.data.frame(combined)
+
+CNA.object = CNA(logR_all,
+                  df$Chromosome,df$Start,
+                  data.type="logratio",sample_all)
+
+smoothed.CNA.object <- smooth.CNA(CNA.object)
+
+```
+
+```{r}
+segment.smoothed.CNA.object <- segment(smoothed.CNA.object, verbose=1, alpha=1e-10, undo.splits = "sdundo")
+
+```
+```{r}
+find.arm = function(centromere, chr, pos){
+  center = centromere[as.numeric(centromere$chrom) == as.numeric(chr), "start.pos"][1]
+  if (is.na(center)){
+    print(chr)
+  }
+  if (pos > center){
+    return("q")
+  } else {
+    return("p")
+  }
+}
+```
+
+
+
+```{r}
+segs = segment.smoothed.CNA.object$output
+colnames(segs) = c("sampleID",
+                   "chrom",
+                   "start.pos",
+                   "end.pos" ,
+                   "n.probes",
+                   "mean")
+centromere = read.table("../data/centromere.csv", sep = ",", header = T)
+# segs$arms = apply(segs,1, function(x) find.arm(centromere, x[2], x[3]))
+# segs = segs[, c(1,2,7,3:6)]
+plotFreq(segments=segs,thres.gain=0.4,thres.loss=-0.4, main="JFCF ALT Frequency")
+
+```
+
