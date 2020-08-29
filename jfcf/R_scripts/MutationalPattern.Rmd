@@ -1,0 +1,85 @@
+```{r setup}
+library(MutationalPatterns)
+###################################################
+### code chunk number 1: style
+###################################################
+
+###################################################
+### code chunk number 2: options
+###################################################
+options(width=96)
+library(ggplot2)
+
+
+###################################################
+### code chunk number 3: loading_reference_data
+###################################################
+library(BSgenome)
+head(available.genomes())
+
+
+###################################################
+### code chunk number 4: loading_reference_data
+###################################################
+ref_genome <- "BSgenome.Hsapiens.UCSC.hg19"
+library(ref_genome, character.only = TRUE)
+```
+
+
+#-----ALT---------
+```{r}
+vcf_files <- list.files("../data/MutationalPattern/data/alt",
+                        pattern = ".vcf", full.names = TRUE)
+sample_names = c("T_1_M","T_1_Q", "T_1_D", "T_1_L",  "T_1_P_ALT", "T_1_R", "T_1J_11E", "T_5K", "T_1J_1_3C")
+
+vcfs <- read_vcfs_as_granges(vcf_files, sample_names, ref_genome)
+
+###################################################
+### code chunk number 14: mut_type_occurrences
+###################################################
+type_occurrences <- mut_type_occurrences(vcfs, ref_genome)
+type_occurrences
+```
+
+```{r}
+pdf(file = "../plots/ALT_mutation_patterns.pdf", width = 8, height = 6)
+plot_spectrum(type_occurrences, CT = TRUE)
+dev.off()
+
+```
+
+```{r}
+pdf(file = "../plots/ALT_mutation_patterns_by_sample.pdf", width = 12, height = 10)
+mut_mat <- mut_matrix(vcf_list = vcfs, ref_genome = ref_genome)
+plot_96_profile(mut_mat)
+dev.off()
+```
+
+#-------TEL-------
+```{r}
+vcf_files <- list.files("../data/MutationalPattern/data/tel",
+                        pattern = ".vcf", full.names = TRUE)
+sample_names = c("T_1_C","T_1_F", "T_1_G", "T_1_H",  "T_1_P_TEL", "T_1J_11E", "T_2H", "T_1J_1_6B")
+
+vcfs <- read_vcfs_as_granges(vcf_files, sample_names, ref_genome)
+
+###################################################
+### code chunk number 14: mut_type_occurrences
+###################################################
+type_occurrences <- mut_type_occurrences(vcfs, ref_genome)
+type_occurrences
+```
+
+```{r}
+pdf(file = "../plots/TEL_mutation_patterns.pdf", width = 8, height = 6)
+plot_spectrum(type_occurrences, CT = TRUE)
+dev.off()
+
+```
+
+```{r}
+pdf(file = "../plots/TEL_mutation_patterns_by_sample.pdf", width = 12, height = 10)
+mut_mat <- mut_matrix(vcf_list = vcfs, ref_genome = ref_genome)
+plot_96_profile(mut_mat)
+dev.off()
+```
